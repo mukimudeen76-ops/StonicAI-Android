@@ -12,8 +12,8 @@ android {
         applicationId = "com.stonicai.app"
         minSdk = 26
         targetSdk = 34
-        versionCode = 10005
-        versionName = "1.0.5"
+        versionCode = 10006
+        versionName = "1.0.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
