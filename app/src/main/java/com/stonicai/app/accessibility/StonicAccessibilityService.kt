@@ -2,7 +2,7 @@ package com.stonicai.app.accessibility
 
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityService.TakeScreenshotCallback
-import android.accessibilityservice.AccessibilityService.TakeScreenshotResult as ScreenshotResult
+import android.accessibilityservice.AccessibilityService.ScreenshotResult
 import android.accessibilityservice.GestureDescription
 import android.content.Intent
 import android.graphics.Bitmap
@@ -120,7 +120,7 @@ class StonicAccessibilityService : AccessibilityService() {
             DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR,
             executor,
             object : TakeScreenshotCallback {
-                override fun onSuccess(screenshot: ScreenshotResult) {
+                override fun onSuccess(screenshot: AccessibilityService.ScreenshotResult) {
                     val bitmap = screenshot.hardwareBuffer.use { hwBuffer ->
                         Bitmap.wrapHardwareBuffer(hwBuffer, screenshot.colorSpace)
                             ?.copy(Bitmap.Config.ARGB_8888, false)
