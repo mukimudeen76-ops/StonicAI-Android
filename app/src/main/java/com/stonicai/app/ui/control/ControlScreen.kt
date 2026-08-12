@@ -2,8 +2,8 @@ package com.stonicai.app.ui.control
 
 import android.content.Intent
 import android.provider.Settings
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -25,10 +25,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Apps
+import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardReturn
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Settings as Cog
 import androidx.compose.material.icons.filled.StackedBarChart
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -59,7 +59,6 @@ import com.stonicai.app.ui.theme.BgBlack
 import com.stonicai.app.ui.theme.BgInput
 import com.stonicai.app.ui.theme.BgPanel
 import com.stonicai.app.ui.theme.BorderFaint
-import com.stonicai.app.ui.theme.BorderSoft
 import com.stonicai.app.ui.theme.Cyan
 import com.stonicai.app.ui.theme.Danger
 import com.stonicai.app.ui.theme.Text
@@ -68,29 +67,20 @@ import com.stonicai.app.ui.theme.TextMuted
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ControlScreen(
-    onBack: () -> Unit,
-    onCommand: (String) -> Unit
-) {
+fun ControlScreen(onBack: () -> Unit, onCommand: (String) -> Unit) {
     val context = LocalContext.current
     val a11yOn = StonicAccessibilityService.isReady()
     var query by remember { mutableStateOf("") }
     val apps = remember(query) {
-        if (query.isBlank()) DeviceApps.installedLaunchableApps(context).take(30)
-        else DeviceApps.search(context, query, limit = 60)
+        if (query.isBlank()) DeviceApps.installedLaunchableApps(context).take(40)
+        else DeviceApps.search(context, query, limit = 80)
     }
 
     Column(
-        Modifier
-            .fillMaxSize()
-            .background(BgBlack)
-            .statusBarsPadding()
+        Modifier.fillMaxSize().background(BgBlack).statusBarsPadding()
     ) {
         Row(
-            Modifier
-                .fillMaxWidth()
-                .height(58.dp)
-                .padding(horizontal = 8.dp),
+            Modifier.fillMaxWidth().height(58.dp).padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             IconButton(onClick = onBack) {
@@ -110,7 +100,7 @@ fun ControlScreen(
         if (!a11yOn) {
             Surface(
                 color = Cyan.copy(alpha = 0.08f),
-                border = androidx.compose.foundation.BorderStroke(1.dp, Cyan.copy(alpha = 0.3f)),
+                border = BorderStroke(1.dp, Cyan.copy(alpha = 0.3f)),
                 shape = RoundedCornerShape(14.dp),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -126,9 +116,7 @@ fun ControlScreen(
                     Text("Enable Stonic Control", color = Text, fontWeight = FontWeight.Bold)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "Tap to open Accessibility settings and turn on “Stonic Control”. " +
-                            "This lets Stonic open apps, press Back/Home/Recents, take screenshots and tap/type — " +
-                            "Android's equivalent of desktop control.",
+                        "Open Accessibility settings and turn on “Stonic Control” for app launching, gestures, Back/Home, and screenshots.",
                         color = TextDim,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -136,37 +124,22 @@ fun ControlScreen(
             }
         }
 
-        // Quick actions
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             ActionTile("Home", Icons.Default.Home, Modifier.weight(1f)) { onCommand("home") }
             ActionTile("Back", Icons.Default.KeyboardReturn, Modifier.weight(1f)) { onCommand("back") }
-            ActionTile("Recents", Icons.Default.StackedBarChart, Modifier.weight(1f)) {
-                onCommand("recents")
-            }
-            ActionTile("Alerts", Icons.Default.Notifications, Modifier.weight(1f)) {
-                onCommand("notifications")
-            }
+            ActionTile("Recents", Icons.Default.StackedBarChart, Modifier.weight(1f)) { onCommand("recents") }
+            ActionTile("Alerts", Icons.Default.Notifications, Modifier.weight(1f)) { onCommand("notifications") }
         }
         Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp),
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            ActionTile("Screenshot", Icons.Default.PhoneAndroid, Modifier.weight(1f)) {
-                onCommand("screenshot")
-            }
-            ActionTile("Quick Settings", Icons.Default.Cog, Modifier.weight(1f)) {
-                onCommand("quick settings")
-            }
-            ActionTile("Apps", Icons.Default.Apps, Modifier.weight(1f)) {
-                onCommand("recents")
-            }
+            ActionTile("Screenshot", Icons.Default.CameraAlt, Modifier.weight(1f)) { onCommand("screenshot") }
+            ActionTile("Quick Settings", Icons.Default.Cog, Modifier.weight(1f)) { onCommand("quick settings") }
+            ActionTile("Apps", Icons.Default.Apps, Modifier.weight(1f)) { onCommand("recents") }
         }
 
         Spacer(Modifier.height(10.dp))
@@ -179,26 +152,18 @@ fun ControlScreen(
         Spacer(Modifier.height(6.dp))
 
         OutlinedTextField(
-            value = query,
-            onValueChange = { query = it },
+            value = query, onValueChange = { query = it },
             placeholder = { Text("Search apps…", color = TextMuted) },
             singleLine = true,
             shape = RoundedCornerShape(14.dp),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
             colors = TextFieldDefaults.colors(
-                focusedContainerColor = BgInput,
-                unfocusedContainerColor = BgInput,
-                focusedIndicatorColor = Color.Transparent,
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedTextColor = Text,
-                unfocusedTextColor = Text,
-                cursorColor = Cyan
+                focusedContainerColor = BgInput, unfocusedContainerColor = BgInput,
+                focusedIndicatorColor = Color.Transparent, unfocusedIndicatorColor = Color.Transparent,
+                focusedTextColor = Text, unfocusedTextColor = Text, cursorColor = Cyan
             ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp)
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp)
         )
-
         Spacer(Modifier.height(8.dp))
 
         LazyColumn(
@@ -210,39 +175,30 @@ fun ControlScreen(
                 Surface(
                     color = BgPanel,
                     shape = RoundedCornerShape(14.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BorderFaint),
+                    border = BorderStroke(1.dp, BorderFaint),
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null
                         ) {
-                            StonicAccessibilityService.get()?.launchApp(app.packageName)
-                                ?: run {
-                                    val intent = context.packageManager
-                                        .getLaunchIntentForPackage(app.packageName)
-                                    if (intent != null) {
-                                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                                        context.startActivity(intent)
-                                    }
+                            val svc = StonicAccessibilityService.get()
+                            if (svc != null) svc.launchApp(app.packageName)
+                            else {
+                                val intent = context.packageManager.getLaunchIntentForPackage(app.packageName)
+                                if (intent != null) {
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    context.startActivity(intent)
                                 }
+                            }
                         }
                 ) {
-                    Row(
-                        Modifier.padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Box(
-                            Modifier
-                                .size(40.dp)
-                                .background(Cyan.copy(alpha = 0.12f), CircleShape),
+                            Modifier.size(40.dp).background(Cyan.copy(alpha = 0.12f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                app.label.take(1).uppercase(),
-                                color = Cyan,
-                                fontWeight = FontWeight.Black
-                            )
+                            Text(app.label.take(1).uppercase(), color = Cyan, fontWeight = FontWeight.Black)
                         }
                         Spacer(Modifier.size(12.dp))
                         Column(Modifier.weight(1f)) {
@@ -264,28 +220,19 @@ fun ControlScreen(
 @Composable
 private fun ActionTile(label: String, icon: ImageVector, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(
-        color = BgPanel,
-        shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(1.dp, BorderFaint),
+        color = BgPanel, shape = RoundedCornerShape(16.dp),
+        border = BorderStroke(1.dp, BorderFaint),
         modifier = modifier
             .height(78.dp)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick
+                indication = null, onClick = onClick
             )
     ) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Icon(icon, label, tint = Cyan, modifier = Modifier.size(22.dp))
             Spacer(Modifier.height(6.dp))
-            Text(
-                label.uppercase(),
-                color = TextDim,
-                style = MaterialTheme.typography.labelSmall
-            )
+            Text(label.uppercase(), color = TextDim, style = MaterialTheme.typography.labelSmall)
         }
     }
 }

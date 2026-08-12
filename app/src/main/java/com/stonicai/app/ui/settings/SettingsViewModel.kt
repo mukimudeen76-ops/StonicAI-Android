@@ -24,6 +24,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         tts: Boolean? = null,
         haptics: Boolean? = null,
         expert: Boolean? = null,
+        ttsVolume: Float? = null,
+        ttsRate: Float? = null,
+        ttsPitch: Float? = null,
+        ttsVoice: String? = null,
+        notifRequested: Boolean? = null,
         openai: String? = null,
         anthropic: String? = null,
         google: String? = null,
@@ -31,25 +36,13 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
     ) {
         viewModelScope.launch {
             repo.save(
-                modelId = modelId,
-                personaId = personaId,
-                systemPrompt = systemPrompt,
-                tts = tts,
-                haptics = haptics,
-                expert = expert,
-                openai = openai,
-                anthropic = anthropic,
-                google = google,
-                groq = groq
+                modelId, personaId, systemPrompt, tts, haptics, expert,
+                ttsVolume, ttsRate, ttsPitch, ttsVoice, notifRequested,
+                openai, anthropic, google, groq
             )
         }
     }
 
-    fun completeOnboarding() {
-        viewModelScope.launch { repo.setOnboarded() }
-    }
-
-    fun resetAll() {
-        viewModelScope.launch { repo.clearAll() }
-    }
+    fun completeOnboarding() = viewModelScope.launch { repo.setOnboarded() }
+    fun resetAll() = viewModelScope.launch { repo.clearAll() }
 }

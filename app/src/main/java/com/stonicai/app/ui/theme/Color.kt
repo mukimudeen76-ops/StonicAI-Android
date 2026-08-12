@@ -29,3 +29,14 @@ val Danger = Color(0xFFFF3B30)
 val Warn = Color(0xFFFBBF24)
 val Ok = Color(0xFF25D366)
 val Purple = Color(0xFFA855F7)
+
+// Backwards-compat aliases used in earlier code
+val StonicBg = BgDeep
+val StonicAccent = Cyan
+val StonicSurface = BgPanel
+val StonicInput = BgInput
+val StonicError = Danger
+val StonicSuccess = Ok
+val StonicTextDim = TextDim
+val StonicTextMuted = TextMuted
+val StonicBorder = BorderSoft

@@ -43,24 +43,25 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private var streamJob: Job? = null
 
     init {
-        viewModelScope.launch { repo.settings.collect { _settings.value = it } }
+        viewModelScope.launch {
+            repo.settings.collect { s ->
+                _settings.value = s
+                tts.applySettings(s.ttsVolume, s.ttsRate, s.ttsPitch, s.ttsVoice.ifBlank { null })
+            }
+        }
     }
 
     fun send(text: String) {
         val content = text.trim()
         if (content.isEmpty() || _isStreaming.value) return
-
         viewModelScope.launch {
-            // 1) Try a local device command first (open app, back, home, screenshot, etc.)
             val local = agent.handleIfDeviceCommand(content)
             if (local != null) {
                 appendUser(content)
-                appendAi(local.reply, status = MessageStatus.DONE)
-                if (local.screenshot != null) _lastScreenshot.value = local.screenshot
+                appendAi(local.reply, MessageStatus.DONE)
                 if (_settings.value.ttsEnabled) tts.speak(local.reply)
                 return@launch
             }
-            // 2) Otherwise call the selected LLM
             runLlm(content)
         }
     }
@@ -79,7 +80,6 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 if (!hasKeyFor(model)) throw MissingApiKeyException(model.provider)
                 val history = buildHistoryForApi()
                 val client = LlmClients.forModel(model, s.keys)
-
                 val sb = StringBuilder()
                 client.stream(model, "", s.effectiveSystemPrompt, history).collect { piece ->
                     sb.append(piece)
@@ -91,20 +91,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                 updateAi(aiId) {
                     it.copy(
                         status = MessageStatus.ERROR,
-                        text = "⚠️ ${e.message}\n\nOpen **Settings → Model & Keys** and add a key for ${model.provider}. " +
-                            "Free options: Google AI Studio and Groq."
+                        text = "⚠️ ${e.message}\n\nOpen **Settings → Model & Keys** and add a key for ${model.provider}. Free options: Google AI Studio and Groq."
                     )
                 }
             } catch (e: Exception) {
                 updateAi(aiId) {
-                    it.copy(
-                        status = MessageStatus.ERROR,
-                        text = "⚠️ Request failed: ${e.message ?: e.javaClass.simpleName}"
-                    )
+                    it.copy(status = MessageStatus.ERROR,
+                        text = "⚠️ Request failed: ${e.message ?: e.javaClass.simpleName}")
                 }
-            } finally {
-                _isStreaming.value = false
-            }
+            } finally { _isStreaming.value = false }
         }
     }
 
@@ -114,52 +109,31 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         _messages.value = _messages.value.map {
             if (it.status == MessageStatus.STREAMING) it.copy(status = MessageStatus.DONE) else it
         }
-    }
-
-    fun clear() {
-        streamJob?.cancel()
-        _isStreaming.value = false
-        _messages.value = emptyList()
-        _lastScreenshot.value = null
-    }
-
-    fun selectModel(id: String) {
-        viewModelScope.launch { repo.save(modelId = id) }
-    }
-
-    fun setPersona(id: String) {
-        viewModelScope.launch { repo.save(personaId = id) }
-    }
-
-    fun setExpert(on: Boolean) {
-        viewModelScope.launch { repo.save(expert = on) }
-    }
-
+    fun selectModel(id: String) { viewModelScope.launch { repo.save(modelId = id) } }
+    fun setPersona(id: String) { viewModelScope.launch { repo.save(personaId = id) } }
+    fun setExpert(on: Boolean) { viewModelScope.launch { repo.save(expert = on) } }
+    fun setTtsEnabled(on: Boolean) { viewModelScope.launch { repo.save(tts = on) } }
     fun stopSpeaking() = tts.stop()
 
     private fun appendUser(text: String) {
         _messages.value = _messages.value +
             ChatMessage(sender = Sender.USER, text = text, status = MessageStatus.DONE)
     }
-
     private fun appendAi(text: String, status: MessageStatus) {
         _messages.value = _messages.value +
             ChatMessage(sender = Sender.AI, text = text, status = status)
     }
 
-    private fun hasKeyFor(model: Models.Model): Boolean {
-        val k = _settings.value.keys
-        return when (model.provider) {
-            "openai" -> k.openai.isNotBlank()
-            "anthropic" -> k.anthropic.isNotBlank()
-            "google" -> k.google.isNotBlank()
-            "groq" -> k.groq.isNotBlank()
-            else -> false
-        }
+    private fun hasKeyFor(model: Models.Model): Boolean = when (model.provider) {
+        "openai" -> _settings.value.keys.openai.isNotBlank()
+        "anthropic" -> _settings.value.keys.anthropic.isNotBlank()
+        "google" -> _settings.value.keys.google.isNotBlank()
+        "groq" -> _settings.value.keys.groq.isNotBlank()
+        else -> false
     }
 
-    private fun buildHistoryForApi(): List<LlmClient.ChatMessage> {
-        return _messages.value
+    private fun buildHistoryForApi(): List<LlmClient.ChatMessage> =
+        _messages.value
             .filter { it.sender == Sender.USER || it.status == MessageStatus.DONE }
             .dropLast(1)
             .map {
@@ -169,7 +143,6 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     content = it.text
                 )
             }
-    }
 
     private fun updateAi(id: String, block: (ChatMessage) -> ChatMessage) {
         _messages.value = _messages.value.map { if (it.id == id) block(it) else it }

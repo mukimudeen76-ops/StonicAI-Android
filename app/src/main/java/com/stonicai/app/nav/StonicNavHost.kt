@@ -35,7 +35,9 @@ import com.stonicai.app.ui.chat.ChatScreen
 import com.stonicai.app.ui.control.ControlScreen
 import com.stonicai.app.ui.home.HomeScreen
 import com.stonicai.app.ui.memory.MemoryScreen
+import com.stonicai.app.ui.permissions.PermissionGate
 import com.stonicai.app.ui.settings.SettingsScreen
+import com.stonicai.app.ui.settings.VoiceScreen
 import com.stonicai.app.ui.theme.BgBlack
 import com.stonicai.app.ui.theme.Cyan
 
@@ -46,10 +48,15 @@ fun StonicNavHost() {
     val onboarded by repo.isOnboarded.collectAsState(initial = null)
     if (onboarded == null) { Splash(); return }
 
-    val start = if (onboarded == true) Destinations.Home.route else Destinations.Onboarding.route
     val nav = rememberNavController()
+    val start = if (onboarded == true) Destinations.Home.route else Destinations.Permissions.route
 
     NavHost(navController = nav, startDestination = start) {
+        composable(Destinations.Permissions.route) {
+            PermissionGate {
+                nav.navigate(Destinations.Home.route) { popUpTo(0) { inclusive = true } }
+            }
+        }
         composable(Destinations.Home.route) {
             HomeScreen(
                 onOpenMemory = { nav.navigate(Destinations.Memory.route) },
@@ -57,6 +64,7 @@ fun StonicNavHost() {
                 onOpenSoul = { nav.navigate(Destinations.Settings.route) },
                 onOpenSkills = { nav.navigate(Destinations.Control.route) },
                 onOpenDesktop = { nav.navigate(Destinations.Control.route) },
+                onOpenVoice = { nav.navigate(Destinations.Voice.route) },
                 onStartChat = { text ->
                     nav.currentBackStackEntry
                         ?.savedStateHandle?.set("pending_command", text)
@@ -71,16 +79,13 @@ fun StonicNavHost() {
             ChatScreen(onBack = { nav.popBackStack() }, pendingCommand = pending)
         }
         composable(Destinations.Settings.route) {
-            SettingsScreen(onBack = { nav.popBackStack() })
-        }
-        composable(Destinations.Onboarding.route) {
             SettingsScreen(
-                onBack = {},
-                isOnboarding = true,
-                onOnboardingDone = {
-                    nav.navigate(Destinations.Home.route) { popUpTo(0) { inclusive = true } }
-                }
+                onBack = { nav.popBackStack() },
+                onOpenVoice = { nav.navigate(Destinations.Voice.route) }
             )
+        }
+        composable(Destinations.Voice.route) {
+            VoiceScreen(onBack = { nav.popBackStack() })
         }
         composable(Destinations.Control.route) {
             ControlScreen(onBack = { nav.popBackStack() }, onCommand = { nav.popBackStack() })

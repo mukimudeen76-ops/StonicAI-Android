@@ -20,12 +20,11 @@ import com.stonicai.app.ui.theme.Cyan
 fun ScanlineOverlay(modifier: Modifier = Modifier) {
     val t = rememberInfiniteTransition(label = "scan")
     val y by t.animateFloat(
-        initialValue = 0f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(4200, easing = LinearEasing), RepeatMode.Restart),
+        0f, 1f,
+        infiniteRepeatable(tween(4200, easing = LinearEasing), RepeatMode.Restart),
         label = "y"
     )
     Canvas(modifier = modifier.fillMaxSize()) {
-        // subtle moving scan line
         val yy = size.height * y
         drawLine(
             brush = Brush.verticalGradient(
@@ -34,20 +33,18 @@ fun ScanlineOverlay(modifier: Modifier = Modifier) {
                 1f to Color.Transparent,
                 startY = yy - 40f, endY = yy + 40f
             ),
-            start = Offset(0f, yy - 40f), end = Offset(size.width, yy - 40f),
-            strokeWidth = 80f
+            start = Offset(0f, yy - 40f), end = Offset(size.width, yy - 40f), strokeWidth = 80f
         )
-        // grid noise
         val step = 28f
         var x = 0f
         while (x < size.width) {
             drawLine(Color.White.copy(alpha = 0.025f), Offset(x, 0f), Offset(x, size.height), 0.6f)
             x += step
         }
-        var yy2 = 0f
-        while (yy2 < size.height) {
-            drawLine(Color.White.copy(alpha = 0.025f), Offset(0f, yy2), Offset(size.width, yy2), 0.6f)
-            yy2 += step
+        var y2 = 0f
+        while (y2 < size.height) {
+            drawLine(Color.White.copy(alpha = 0.025f), Offset(0f, y2), Offset(size.width, y2), 0.6f)
+            y2 += step
         }
     }
 }
