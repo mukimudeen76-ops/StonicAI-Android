@@ -27,41 +27,48 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.stonicai.app.data.SettingsRepository
 import com.stonicai.app.ui.chat.ChatScreen
 import com.stonicai.app.ui.control.ControlScreen
+import com.stonicai.app.ui.home.HomeScreen
 import com.stonicai.app.ui.memory.MemoryScreen
 import com.stonicai.app.ui.settings.SettingsScreen
-import com.stonicai.app.ui.theme.Cyan
 import com.stonicai.app.ui.theme.BgBlack
+import com.stonicai.app.ui.theme.Cyan
 
 @Composable
 fun StonicNavHost() {
     val context = LocalContext.current
     val repo = remember { SettingsRepository(context.applicationContext as Application) }
-
     val onboarded by repo.isOnboarded.collectAsState(initial = null)
     if (onboarded == null) { Splash(); return }
 
-    val start = if (onboarded == true) Destinations.Chat.route else Destinations.Onboarding.route
+    val start = if (onboarded == true) Destinations.Home.route else Destinations.Onboarding.route
     val nav = rememberNavController()
 
     NavHost(navController = nav, startDestination = start) {
-        composable(Destinations.Chat.route) { backStackEntry ->
-            val pending = backStackEntry.savedStateHandle.get<String>("pending_command")
-            if (pending != null) {
-                backStackEntry.savedStateHandle.remove<String>("pending_command")
-            }
-            ChatScreen(
-                pendingCommand = pending,
-                onOpenSettings = { nav.navigate(Destinations.Settings.route) },
+        composable(Destinations.Home.route) {
+            HomeScreen(
                 onOpenMemory = { nav.navigate(Destinations.Memory.route) },
-                onOpenDesktop = { nav.navigate(Destinations.Control.route) }
+                onOpenSettings = { nav.navigate(Destinations.Settings.route) },
+                onOpenSoul = { nav.navigate(Destinations.Settings.route) },
+                onOpenSkills = { nav.navigate(Destinations.Control.route) },
+                onOpenDesktop = { nav.navigate(Destinations.Control.route) },
+                onStartChat = { text ->
+                    nav.currentBackStackEntry
+                        ?.savedStateHandle?.set("pending_command", text)
+                    nav.navigate(Destinations.Chat.route)
+                }
             )
+        }
+        composable(Destinations.Chat.route) {
+            val pending = nav.currentBackStackEntry
+                ?.savedStateHandle?.get<String>("pending_command")
+            nav.currentBackStackEntry?.savedStateHandle?.remove<String>("pending_command")
+            ChatScreen(onBack = { nav.popBackStack() }, pendingCommand = pending)
         }
         composable(Destinations.Settings.route) {
             SettingsScreen(onBack = { nav.popBackStack() })
@@ -71,24 +78,12 @@ fun StonicNavHost() {
                 onBack = {},
                 isOnboarding = true,
                 onOnboardingDone = {
-                    nav.navigate(Destinations.Chat.route) { popUpTo(0) { inclusive = true } }
+                    nav.navigate(Destinations.Home.route) { popUpTo(0) { inclusive = true } }
                 }
             )
         }
         composable(Destinations.Control.route) {
-            ControlScreen(
-                onBack = { nav.popBackStack() },
-                onCommand = {
-                    nav.popBackStack()
-                    // Send command by re-entering chat; the ChatVM handles it via the
-                    // same input pipeline. We use a saved-state handle so ChatScreen
-                    // can pick it up.
-                    nav.currentBackStackEntry?.savedStateHandle?.set("pending_command", it)
-                    nav.navigate(Destinations.Chat.route) {
-                        popUpTo(Destinations.Chat.route) { inclusive = false }
-                    }
-                }
-            )
+            ControlScreen(onBack = { nav.popBackStack() }, onCommand = { nav.popBackStack() })
         }
         composable(Destinations.Memory.route) {
             MemoryScreen(onBack = { nav.popBackStack() })
@@ -99,7 +94,10 @@ fun StonicNavHost() {
 @Composable
 private fun Splash() {
     val t = rememberInfiniteTransition(label = "s")
-    val scale by t.animateFloat(0.8f, 1.15f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "sc")
+    val scale by t.animateFloat(
+        0.85f, 1.15f,
+        infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "pulse"
+    )
     Box(Modifier.fillMaxSize().background(BgBlack), Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Box(Modifier.size(56.dp).scale(scale).background(Cyan, CircleShape))
@@ -112,4 +110,3 @@ private fun Splash() {
         }
     }
 }
-
