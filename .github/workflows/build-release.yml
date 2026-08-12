@@ -1,0 +1,91 @@
+name: Build & Release APK
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: |
+            platforms;android-34
+            build-tools;34.0.0
+            platform-tools
+
+      - name: Gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace --no-daemon
+
+      - name: Build release APK
+        run: ./gradlew :app:assembleRelease --stacktrace --no-daemon
+
+      - name: Collect APKs
+        id: apk
+        run: |
+          mkdir -p artifacts
+          cp app/build/outputs/apk/debug/app-debug.apk "artifacts/StonicAI-${GITHUB_REF_NAME:-dev}-debug.apk" || true
+          cp app/build/outputs/apk/release/app-release.apk "artifacts/StonicAI-${GITHUB_REF_NAME:-dev}-release.apk" || true
+          ls -la artifacts/
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stonic-ai-apk
+          path: artifacts/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Stonic AI ${{ github.ref_name }}
+          body: |
+            ## Stonic AI for Android — ${{ github.ref_name }}
+
+            Native Kotlin / Jetpack Compose build. Desktop not required.
+
+            ### Install
+            1. Download **`StonicAI-${{ github.ref_name }}-release.apk`** (or debug APK).
+            2. On your phone enable **Install unknown apps** for the browser/file manager.
+            3. Open the APK and tap **Install**.
+
+            First launch needs at least one free API key (Google AI Studio or Groq) in the Setup screen.
+          files: artifacts/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

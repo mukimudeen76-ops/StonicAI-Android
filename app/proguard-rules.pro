@@ -1,0 +1,5 @@
+-keep class kotlinx.coroutines.** { *; }
+-keepclassmembers class * extends androidx.lifecycle.ViewModel { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
+-dontwarn org.commonmark.**
