@@ -2,7 +2,6 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("org.jetbrains.kotlin.kapt")
 }
 
 android {
@@ -83,8 +82,6 @@ dependencies {
     implementation("io.noties.markwon:ext-tables:4.6.2")
     implementation("io.noties.markwon:linkify:4.6.2")
     implementation("io.noties.markwon:syntax-highlight:4.6.2")
-    implementation("io.noties:prism4j:2.0.0")
-    kapt("io.noties:prism4j-bundler:2.0.0")
 
     implementation("io.coil-kt:coil-compose:2.6.0")
 
