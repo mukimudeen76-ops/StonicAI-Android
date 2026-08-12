@@ -18,7 +18,10 @@ import io.noties.prism4j.Prism4j
 import io.noties.prism4j.annotations.PrismBundle
 
 @PrismBundle(includeAll = true)
-class Prism4jGrammarLocator
+class Prism4jGrammarLocator : io.noties.prism4j.GrammarLocator {
+    override fun grammar(prism4j: Prism4j, language: String): io.noties.prism4j.Grammar? = null
+    override fun languages(): kotlin.collections.MutableList<kotlin.String> = mutableListOf()
+}
 
 @Composable
 fun MarkdownText(

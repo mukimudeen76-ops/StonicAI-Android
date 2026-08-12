@@ -101,6 +101,16 @@ fun ChatScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
+    val speechLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+        val text = matches?.firstOrNull()
+        if (!text.isNullOrBlank()) {
+            input = if (input.isBlank()) text else "$input $text"
+        }
+    }
+
     val micPerm = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -112,16 +122,6 @@ fun ChatScreen(
                 )
             }
             runCatching { speechLauncher.launch(intent) }
-        }
-    }
-
-    val speechLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
-        val text = matches?.firstOrNull()
-        if (!text.isNullOrBlank()) {
-            input = if (input.isBlank()) text else "$input $text"
         }
     }
 
