@@ -27,12 +27,22 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Bolt
-import androidx.compose.material.icons.filled.Mic
-import androidx.compose.material.icons.filled.Memory
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Memory
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -44,6 +54,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
@@ -76,6 +87,56 @@ fun HomeScreen(
     onOpenSoul: () -> Unit,
     onOpenSkills: () -> Unit,
     onOpenDesktop: () -> Unit,
+    onOpenVoice: () -> Unit = {},
+    onStartChat: (String) -> Unit = {},
+    vm: ChatViewModel = viewModel()
+) {
+    val context = LocalContext.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val settings by vm.settings.collectAsState()
+    val isStreaming by vm.isStreaming.collectAsState()
+    var input by rememberSaveable { mutableStateOf("") }
+
+    fun submit() {
+        val text = input.trim()
+        if (text.isEmpty() || isStreaming) return
+        input = ""
+        keyboard?.hide()
+        onStartChat(text)
+    }
+
+    val speech = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val matches = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS)
+        val text = matches?.firstOrNull()
+        if (!text.isNullOrBlank()) input = if (input.isBlank()) text else "$input $text"
+    }
+    val micPerm = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) {
+            val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            }
+            runCatching { speech.launch(intent) }
+        }
+    }
+
+    Box(
+        Modifier
+            .fillMaxSize()
+            .background(BgBlack)
+            .statusBarsPadding()
+    ) {
+        ScanlineOverlay(Modifier.align(Alignment.Center))
+
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(horizontal = 22.dp, vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             Row(
                 Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -222,9 +283,11 @@ fun HomeScreen(
                             .background(if (isStreaming) Danger else Cyan)
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = { if (isStreaming) vm.stop() else if (input.isNotBlank()) submit() }
-                            ),
+                                indication = null
+                            ) {
+                                if (isStreaming) vm.stop()
+                                else if (input.isNotBlank()) submit()
+                            },
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -239,7 +302,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun TopIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+private fun TopIcon(icon: ImageVector, label: String, onClick: () -> Unit) {
     Box(
         Modifier.size(36.dp).clip(CircleShape)
             .clickable(
@@ -263,8 +326,8 @@ private fun ThinkingChip(enabled: Boolean, onClick: () -> Unit) {
     ) {
         Row(Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Default.Bolt, "Expert", tint = if (enabled) Cyan else TextMuted,
-                modifier = Modifier.size(12.dp))
+            Icon(Icons.Default.Bolt, "Expert",
+                tint = if (enabled) Cyan else TextMuted, modifier = Modifier.size(12.dp))
             Spacer(Modifier.width(6.dp))
             Text("EXPERT", color = if (enabled) Cyan else TextMuted,
                 fontWeight = FontWeight.Black, fontSize = 9.sp, letterSpacing = 2.sp)

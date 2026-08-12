@@ -1,10 +1,8 @@
 package com.stonicai.app.ui.chat
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.stonicai.app.data.AgentResult
 import com.stonicai.app.data.ChatMessage
 import com.stonicai.app.data.MessageStatus
 import com.stonicai.app.data.Models
@@ -36,9 +34,6 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _isStreaming = MutableStateFlow(false)
     val isStreaming: StateFlow<Boolean> = _isStreaming.asStateFlow()
-
-    private val _lastScreenshot = MutableStateFlow<java.io.File?>(null)
-    val lastScreenshot: StateFlow<java.io.File?> = _lastScreenshot.asStateFlow()
 
     private var streamJob: Job? = null
 
@@ -99,7 +94,9 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
                     it.copy(status = MessageStatus.ERROR,
                         text = "⚠️ Request failed: ${e.message ?: e.javaClass.simpleName}")
                 }
-            } finally { _isStreaming.value = false }
+            } finally {
+                _isStreaming.value = false
+            }
         }
     }
 
@@ -109,6 +106,15 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         _messages.value = _messages.value.map {
             if (it.status == MessageStatus.STREAMING) it.copy(status = MessageStatus.DONE) else it
         }
+        tts.stop()
+    }
+
+    fun clear() {
+        streamJob?.cancel()
+        _isStreaming.value = false
+        _messages.value = emptyList()
+    }
+
     fun selectModel(id: String) { viewModelScope.launch { repo.save(modelId = id) } }
     fun setPersona(id: String) { viewModelScope.launch { repo.save(personaId = id) } }
     fun setExpert(on: Boolean) { viewModelScope.launch { repo.save(expert = on) } }
@@ -119,6 +125,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         _messages.value = _messages.value +
             ChatMessage(sender = Sender.USER, text = text, status = MessageStatus.DONE)
     }
+
     private fun appendAi(text: String, status: MessageStatus) {
         _messages.value = _messages.value +
             ChatMessage(sender = Sender.AI, text = text, status = status)
@@ -164,6 +171,3 @@ object ServiceLocator {
     fun tts(app: Application): StonicTts =
         tts ?: synchronized(this) { tts ?: StonicTts(app).also { tts = it } }
 }
-
-/** Small helper so the agent can use an Android Context without holding the VM. */
-val AndroidViewModel.appContext: Context get() = getApplication<Application>().applicationContext
