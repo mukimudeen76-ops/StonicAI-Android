@@ -1,32 +1,29 @@
 package com.stonicai.app.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 
-private val StonicColorScheme = darkColorScheme(
-    primary = StonicAccent,
+private val StonicColors = darkColorScheme(
+    primary = Cyan,
     onPrimary = Color.Black,
-    secondary = Color.White,
+    secondary = IronIce,
     onSecondary = Color.Black,
-    background = StonicBg,
-    onBackground = Color.White,
-    surface = StonicSurface,
-    onSurface = Color.White,
-    surfaceVariant = StonicInput,
-    onSurfaceVariant = StonicTextDim,
-    error = StonicError,
-    outline = StonicBorderStrong
+    background = BgBlack,
+    onBackground = Text,
+    surface = BgPanel,
+    onSurface = Text,
+    surfaceVariant = BgInput,
+    onSurfaceVariant = TextDim,
+    error = Danger,
+    outline = BorderSoft
 )
 
 @Composable
 fun StonicTheme(content: @Composable () -> Unit) {
-    // Stonic is always a dark "terminal" UI, matching the desktop app.
-    isSystemInDarkTheme()
     MaterialTheme(
-        colorScheme = StonicColorScheme,
+        colorScheme = StonicColors,
         typography = StonicTypography,
         content = content
     )

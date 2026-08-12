@@ -12,28 +12,6 @@ import io.noties.markwon.Markwon
 import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.linkify.LinkifyPlugin
-import io.noties.markwon.syntax.Prism4jThemeDarkula
-import io.noties.markwon.syntax.SyntaxHighlightPlugin
-import io.noties.prism4j.Prism4j
-import io.noties.prism4j.annotations.PrismBundle
-import io.noties.prism4j.Prism4j.Grammar
-
-@PrismBundle(includeAll = true)
-class Prism4jGrammarLocator : io.noties.prism4j.GrammarLocator {
-    override fun grammar(prism4j: Prism4j, language: String): Grammar? {
-        return try {
-            val fqn = "io.noties.prism4j.languages.Prism_${language.replaceFirstChar { it.uppercase() }}"
-            val cls = Class.forName(fqn)
-            val m = cls.getDeclaredMethod("create", Prism4j::class.java)
-            m.isAccessible = true
-            m.invoke(null, prism4j) as? Grammar
-        } catch (t: Throwable) {
-            null
-        }
-    }
-
-    override fun languages(): MutableSet<String> = mutableSetOf()
-}
 
 @Composable
 fun MarkdownText(
@@ -44,17 +22,10 @@ fun MarkdownText(
 ) {
     val context = LocalContext.current
     val markwon = remember {
-        val prism4j = Prism4j(Prism4jGrammarLocator())
         Markwon.builder(context)
             .usePlugin(StrikethroughPlugin.create())
             .usePlugin(TablePlugin.create(context))
             .usePlugin(LinkifyPlugin.create())
-            .usePlugin(
-                SyntaxHighlightPlugin.create(
-                    prism4j,
-                    Prism4jThemeDarkula.create()
-                )
-            )
             .build()
     }
 
@@ -67,6 +38,7 @@ fun MarkdownText(
                 setLinkTextColor(linkColor.toArgb())
                 textSize = 14f
                 movementMethod = android.text.method.LinkMovementMethod.getInstance()
+                setLineSpacing(0f, 1.3f)
             }
         },
         update = { tv ->

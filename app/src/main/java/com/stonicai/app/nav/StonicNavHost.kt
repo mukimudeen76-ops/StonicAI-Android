@@ -33,103 +33,83 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.stonicai.app.data.SettingsRepository
 import com.stonicai.app.ui.chat.ChatScreen
+import com.stonicai.app.ui.control.ControlScreen
+import com.stonicai.app.ui.memory.MemoryScreen
 import com.stonicai.app.ui.settings.SettingsScreen
-import com.stonicai.app.ui.theme.StonicAccent
-import com.stonicai.app.ui.theme.StonicBg
+import com.stonicai.app.ui.theme.Cyan
+import com.stonicai.app.ui.theme.BgBlack
 
 @Composable
 fun StonicNavHost() {
     val context = LocalContext.current
     val repo = remember { SettingsRepository(context.applicationContext as Application) }
 
-    // Read onboarding flag BEFORE building the graph so we can choose the
-    // correct start destination. Previously this returned early and tried to
-    // navigate from a LaunchedEffect before the NavHost graph existed, which
-    // crashed with "Navigation graph has not been set for NavController".
     val onboarded by repo.isOnboarded.collectAsState(initial = null)
-
-    if (onboarded == null) {
-        SplashScreen()
-        return
-    }
+    if (onboarded == null) { Splash(); return }
 
     val start = if (onboarded == true) Destinations.Chat.route else Destinations.Onboarding.route
     val nav = rememberNavController()
 
     NavHost(navController = nav, startDestination = start) {
-        chatGraph(
-            onOpenSettings = { nav.navigate(Destinations.Settings.route) }
-        )
-        settingsGraph(onBack = { nav.popBackStack() })
-        onboardingGraph(
-            onDone = {
-                nav.navigate(Destinations.Chat.route) {
-                    popUpTo(0) { inclusive = true }
-                }
+        composable(Destinations.Chat.route) { backStackEntry ->
+            val pending = backStackEntry.savedStateHandle.get<String>("pending_command")
+            if (pending != null) {
+                backStackEntry.savedStateHandle.remove<String>("pending_command")
             }
-        )
-    }
-}
-
-private fun NavGraphBuilder.chatGraph(onOpenSettings: () -> Unit) {
-    composable(Destinations.Chat.route) {
-        ChatScreen(onOpenSettings = onOpenSettings)
-    }
-}
-
-private fun NavGraphBuilder.settingsGraph(onBack: () -> Unit) {
-    composable(Destinations.Settings.route) {
-        SettingsScreen(onBack = onBack)
-    }
-}
-
-private fun NavGraphBuilder.onboardingGraph(onDone: () -> Unit) {
-    composable(Destinations.Onboarding.route) {
-        SettingsScreen(onBack = {}, isOnboarding = true, onOnboardingDone = onDone)
+            ChatScreen(
+                pendingCommand = pending,
+                onOpenSettings = { nav.navigate(Destinations.Settings.route) },
+                onOpenMemory = { nav.navigate(Destinations.Memory.route) },
+                onOpenDesktop = { nav.navigate(Destinations.Control.route) }
+            )
+        }
+        composable(Destinations.Settings.route) {
+            SettingsScreen(onBack = { nav.popBackStack() })
+        }
+        composable(Destinations.Onboarding.route) {
+            SettingsScreen(
+                onBack = {},
+                isOnboarding = true,
+                onOnboardingDone = {
+                    nav.navigate(Destinations.Chat.route) { popUpTo(0) { inclusive = true } }
+                }
+            )
+        }
+        composable(Destinations.Control.route) {
+            ControlScreen(
+                onBack = { nav.popBackStack() },
+                onCommand = {
+                    nav.popBackStack()
+                    // Send command by re-entering chat; the ChatVM handles it via the
+                    // same input pipeline. We use a saved-state handle so ChatScreen
+                    // can pick it up.
+                    nav.currentBackStackEntry?.savedStateHandle?.set("pending_command", it)
+                    nav.navigate(Destinations.Chat.route) {
+                        popUpTo(Destinations.Chat.route) { inclusive = false }
+                    }
+                }
+            )
+        }
+        composable(Destinations.Memory.route) {
+            MemoryScreen(onBack = { nav.popBackStack() })
+        }
     }
 }
 
 @Composable
-private fun SplashScreen() {
-    val transition = rememberInfiniteTransition(label = "splash")
-    val scale by transition.animateFloat(
-        initialValue = 0.85f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(900),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "pulse"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(StonicBg),
-        contentAlignment = Alignment.Center
-    ) {
+private fun Splash() {
+    val t = rememberInfiniteTransition(label = "s")
+    val scale by t.animateFloat(0.8f, 1.15f, infiniteRepeatable(tween(900), RepeatMode.Reverse), label = "sc")
+    Box(Modifier.fillMaxSize().background(BgBlack), Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .scale(scale)
-                    .background(StonicAccent, CircleShape)
-            )
-            Spacer(Modifier.height(20.dp))
-            Text(
-                "STONIC",
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black,
-                letterSpacing = 4.sp
-            )
+            Box(Modifier.size(56.dp).scale(scale).background(Cyan, CircleShape))
+            Spacer(Modifier.height(18.dp))
+            Text("STONIC", color = Color.White, fontSize = 22.sp,
+                fontWeight = FontWeight.Black, letterSpacing = 4.sp)
             Spacer(Modifier.height(6.dp))
-            Text(
-                "Initializing…",
-                color = Color.White.copy(alpha = 0.4f),
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold
-            )
+            Text("Initializing…", color = Color.White.copy(alpha = 0.4f),
+                fontSize = 11.sp, fontWeight = FontWeight.Bold)
         }
     }
 }
+

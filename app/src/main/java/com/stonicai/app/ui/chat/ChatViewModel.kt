@@ -1,13 +1,16 @@
 package com.stonicai.app.ui.chat
 
 import android.app.Application
+import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.stonicai.app.data.AgentResult
 import com.stonicai.app.data.ChatMessage
 import com.stonicai.app.data.MessageStatus
 import com.stonicai.app.data.Models
 import com.stonicai.app.data.Sender
 import com.stonicai.app.data.SettingsRepository
+import com.stonicai.app.data.StonicAgent
 import com.stonicai.app.data.StonicSettings
 import com.stonicai.app.data.llm.LlmClient
 import com.stonicai.app.data.llm.LlmClients
@@ -23,6 +26,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repo = ServiceLocator.repo(app)
     private val tts = ServiceLocator.tts(app)
+    private val agent = StonicAgent(app)
 
     private val _messages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val messages: StateFlow<List<ChatMessage>> = _messages.asStateFlow()
@@ -33,22 +37,39 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private val _isStreaming = MutableStateFlow(false)
     val isStreaming: StateFlow<Boolean> = _isStreaming.asStateFlow()
 
+    private val _lastScreenshot = MutableStateFlow<java.io.File?>(null)
+    val lastScreenshot: StateFlow<java.io.File?> = _lastScreenshot.asStateFlow()
+
     private var streamJob: Job? = null
 
     init {
-        viewModelScope.launch {
-            repo.settings.collect { _settings.value = it }
-        }
+        viewModelScope.launch { repo.settings.collect { _settings.value = it } }
     }
 
     fun send(text: String) {
         val content = text.trim()
         if (content.isEmpty() || _isStreaming.value) return
 
-        val userMsg = ChatMessage(sender = Sender.USER, text = content, status = MessageStatus.DONE)
+        viewModelScope.launch {
+            // 1) Try a local device command first (open app, back, home, screenshot, etc.)
+            val local = agent.handleIfDeviceCommand(content)
+            if (local != null) {
+                appendUser(content)
+                appendAi(local.reply, status = MessageStatus.DONE)
+                if (local.screenshot != null) _lastScreenshot.value = local.screenshot
+                if (_settings.value.ttsEnabled) tts.speak(local.reply)
+                return@launch
+            }
+            // 2) Otherwise call the selected LLM
+            runLlm(content)
+        }
+    }
+
+    private fun runLlm(content: String) {
+        appendUser(content)
         val aiId = java.util.UUID.randomUUID().toString()
-        val aiMsg = ChatMessage(id = aiId, sender = Sender.AI, text = "", status = MessageStatus.STREAMING)
-        _messages.value = _messages.value + userMsg + aiMsg
+        _messages.value = _messages.value +
+            ChatMessage(id = aiId, sender = Sender.AI, text = "", status = MessageStatus.STREAMING)
         _isStreaming.value = true
 
         streamJob = viewModelScope.launch {
@@ -56,27 +77,22 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
             val model = Models.byId(s.selectedModelId)
             try {
                 if (!hasKeyFor(model)) throw MissingApiKeyException(model.provider)
-
                 val history = buildHistoryForApi()
                 val client = LlmClients.forModel(model, s.keys)
-                val system = s.systemPrompt.ifBlank {
-                    "You are Stonic, a helpful AI assistant on Android. Reply concisely in Markdown, matching the user's language."
-                }
 
                 val sb = StringBuilder()
-                client.stream(model, s.keys.openai, system, history).collect { piece ->
+                client.stream(model, "", s.effectiveSystemPrompt, history).collect { piece ->
                     sb.append(piece)
                     updateAi(aiId) { it.copy(text = sb.toString()) }
                 }
-
                 updateAi(aiId) { it.copy(status = MessageStatus.DONE) }
                 if (s.ttsEnabled) tts.speak(sb.toString())
             } catch (e: MissingApiKeyException) {
                 updateAi(aiId) {
                     it.copy(
                         status = MessageStatus.ERROR,
-                        text = "⚠️ ${e.message}\n\nOpen **Settings → API Keys** and add your key for ${model.provider}. " +
-                            "You can use any of: OpenAI, Anthropic, Google AI Studio, or Groq (free tier)."
+                        text = "⚠️ ${e.message}\n\nOpen **Settings → Model & Keys** and add a key for ${model.provider}. " +
+                            "Free options: Google AI Studio and Groq."
                     )
                 }
             } catch (e: Exception) {
@@ -100,22 +116,36 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    fun selectModel(id: String) {
-        viewModelScope.launch { repo.save(modelId = id) }
-    }
-
     fun clear() {
         streamJob?.cancel()
         _isStreaming.value = false
         _messages.value = emptyList()
+        _lastScreenshot.value = null
     }
 
-    fun speakLast() {
-        val last = _messages.value.lastOrNull { it.sender == Sender.AI && it.text.isNotBlank() } ?: return
-        tts.speak(last.text)
+    fun selectModel(id: String) {
+        viewModelScope.launch { repo.save(modelId = id) }
+    }
+
+    fun setPersona(id: String) {
+        viewModelScope.launch { repo.save(personaId = id) }
+    }
+
+    fun setExpert(on: Boolean) {
+        viewModelScope.launch { repo.save(expert = on) }
     }
 
     fun stopSpeaking() = tts.stop()
+
+    private fun appendUser(text: String) {
+        _messages.value = _messages.value +
+            ChatMessage(sender = Sender.USER, text = text, status = MessageStatus.DONE)
+    }
+
+    private fun appendAi(text: String, status: MessageStatus) {
+        _messages.value = _messages.value +
+            ChatMessage(sender = Sender.AI, text = text, status = status)
+    }
 
     private fun hasKeyFor(model: Models.Model): Boolean {
         val k = _settings.value.keys
@@ -131,7 +161,7 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     private fun buildHistoryForApi(): List<LlmClient.ChatMessage> {
         return _messages.value
             .filter { it.sender == Sender.USER || it.status == MessageStatus.DONE }
-            .dropLast(1) // drop the empty streaming AI placeholder
+            .dropLast(1)
             .map {
                 LlmClient.ChatMessage(
                     role = if (it.sender == Sender.USER) LlmClient.ChatMessage.Role.USER
@@ -151,10 +181,6 @@ class ChatViewModel(app: Application) : AndroidViewModel(app) {
     }
 }
 
-/**
- * Tiny service locator to avoid pulling in a full DI framework.
- * Repo and TTS are app-scoped singletons.
- */
 object ServiceLocator {
     @Volatile private var repo: SettingsRepository? = null
     @Volatile private var tts: StonicTts? = null
@@ -165,3 +191,6 @@ object ServiceLocator {
     fun tts(app: Application): StonicTts =
         tts ?: synchronized(this) { tts ?: StonicTts(app).also { tts = it } }
 }
+
+/** Small helper so the agent can use an Android Context without holding the VM. */
+val AndroidViewModel.appContext: Context get() = getApplication<Application>().applicationContext

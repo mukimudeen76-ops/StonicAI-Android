@@ -19,9 +19,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun save(
         modelId: String? = null,
+        personaId: String? = null,
         systemPrompt: String? = null,
         tts: Boolean? = null,
         haptics: Boolean? = null,
+        expert: Boolean? = null,
         openai: String? = null,
         anthropic: String? = null,
         google: String? = null,
@@ -30,9 +32,11 @@ class SettingsViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             repo.save(
                 modelId = modelId,
+                personaId = personaId,
                 systemPrompt = systemPrompt,
                 tts = tts,
                 haptics = haptics,
+                expert = expert,
                 openai = openai,
                 anthropic = anthropic,
                 google = google,

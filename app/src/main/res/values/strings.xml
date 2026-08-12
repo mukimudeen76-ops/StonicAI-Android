@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Stonic AI</string>
+    <string name="accessibility_service_label">Stonic Control</string>
+    <string name="accessibility_description">Lets Stonic open apps, press back/home/recents, take screenshots, tap and type on your behalf — the Android equivalent of desktop control. Disable any time in Settings → Accessibility.</string>
 </resources>
