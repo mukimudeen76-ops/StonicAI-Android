@@ -49,6 +49,7 @@ configurations.all {
             because("avoid duplicate annotations vs annotations-java5 (markwon/prism4j)")
         }
     }
+    exclude(group = "org.jetbrains", module = "annotations-java5")
 }
 
 dependencies {
