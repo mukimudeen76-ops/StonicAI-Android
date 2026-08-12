@@ -42,6 +42,15 @@ android {
     }
 }
 
+configurations.all {
+    resolutionStrategy.eachDependency {
+        if (requested.group == "org.jetbrains" && requested.name.startsWith("annotations")) {
+            useVersion("24.0.1")
+            because("avoid duplicate annotations vs annotations-java5 (markwon/prism4j)")
+        }
+    }
+}
+
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2024.06.00")
     implementation(composeBom)
