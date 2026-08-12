@@ -61,6 +61,22 @@ class SettingsRepository(private val context: Context) {
         val TTS = stringPreferencesKey("tts")
         val HAP = stringPreferencesKey("haptics")
         val EXPERT = stringPreferencesKey("expert")
+        val VOL = floatPreferencesKey("vol")
+        val RATE = floatPreferencesKey("rate")
+        val PITCH = floatPreferencesKey("pitch")
+        val VOICE = stringPreferencesKey("voice")
+        val NOTIF = stringPreferencesKey("notif")
+        val KEY_OPENAI = stringPreferencesKey("key_openai")
+        val KEY_ANTHROPIC = stringPreferencesKey("key_anthropic")
+        val KEY_GOOGLE = stringPreferencesKey("key_google")
+        val KEY_GROQ = stringPreferencesKey("key_groq")
+        val ONBOARDED = stringPreferencesKey("onboarded")
+    }
+
+    val settings: Flow<StonicSettings> = context.dataStore.data.map { p ->
+        StonicSettings(
+            selectedModelId = p[K.MODEL] ?: Models.DEFAULT.id,
+            personaId = p[K.PERSONA] ?: Persona.STONIC.id,
             systemPrompt = p[K.SYS] ?: "",
             ttsEnabled = (p[K.TTS] ?: "1") == "1",
             hapticsEnabled = (p[K.HAP] ?: "1") == "1",
@@ -90,6 +106,23 @@ class SettingsRepository(private val context: Context) {
         tts: Boolean? = null,
         haptics: Boolean? = null,
         expert: Boolean? = null,
+        ttsVolume: Float? = null,
+        ttsRate: Float? = null,
+        ttsPitch: Float? = null,
+        ttsVoice: String? = null,
+        notifRequested: Boolean? = null,
+        openai: String? = null,
+        anthropic: String? = null,
+        google: String? = null,
+        groq: String? = null
+    ) {
+        context.dataStore.edit { p ->
+            modelId?.let { p[K.MODEL] = it }
+            personaId?.let { p[K.PERSONA] = it }
+            systemPrompt?.let { p[K.SYS] = it }
+            tts?.let { p[K.TTS] = if (it) "1" else "0" }
+            haptics?.let { p[K.HAP] = if (it) "1" else "0" }
+            expert?.let { p[K.EXPERT] = if (it) "1" else "0" }
             ttsVolume?.let { p[K.VOL] = it }
             ttsRate?.let { p[K.RATE] = it }
             ttsPitch?.let { p[K.PITCH] = it }
