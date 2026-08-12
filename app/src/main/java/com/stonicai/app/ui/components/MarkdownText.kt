@@ -19,17 +19,13 @@ import io.noties.prism4j.annotations.PrismBundle
 
 @PrismBundle(includeAll = true)
 class Prism4jGrammarLocator : io.noties.prism4j.GrammarLocator {
-    override fun grammar(prism4j: Prism4j, language: String): io.noties.prism4j.Grammar? {
-        // Grammer classes are generated at compile-time by prism4j-bundler.
-        // The kapt-generated superclass supplies real implementations; this
-        // class only needs to exist for the bundler annotation processor.
+    override fun grammar(prism4j: Prism4j, language: String): Any? {
         return try {
             val fqn = "io.noties.prism4j.languages.Prism_${language.replaceFirstChar { it.uppercase() }}"
             val cls = Class.forName(fqn)
             val m = cls.getDeclaredMethod("create", Prism4j::class.java)
             m.isAccessible = true
-            @Suppress("UNCHECKED_CAST")
-            m.invoke(null, prism4j) as? Prism4j.Grammar
+            m.invoke(null, prism4j)
         } catch (t: Throwable) {
             null
         }
